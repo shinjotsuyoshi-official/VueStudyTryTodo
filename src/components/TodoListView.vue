@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import { errMsgs } from '@/const/errorMessage';
-import { statuses } from '@/const/statuses';
-import { validate } from '@/const/validate';
-import { ref, type Ref } from 'vue';
+    import { errMsgs } from '@/const/errorMessage';
+    import { statuses } from '@/const/statuses';
+    import { validate } from '@/const/validate';
+    import { ref, type Ref } from 'vue';
+
     // localStorage 取得
     const storageData: string | null = localStorage.getItem("items");
     const items = storageData ? ref(JSON.parse(storageData)) : ref([]);
-    // ヘッダー値 ※別のファイルで持たせるか検討中
-    const headerTextList: string[] = ["ID","タスク内容","期限","ステータス","編集","削除","保存"];
-    
+
+    // 変数定義
+    const headerTextList: string[]                              // ヘッダーの値 
+        = ["ID","タスク内容","期限","ステータス","編集","削除","保存"];
+    let deleteItemId: number        = 0;                        // 削除処理用ID保持変数
+    let modalTextDeleteItem: string = "";                       // 削除処理用のモーダルテキスト
+
     // 常時監視変数
     const editCntent: Ref<string | string>      = ref("");      // 編集中のタスク内容の値
     const editLimit: Ref<string | string>       = ref("");      // 編集中の期限の値
@@ -50,23 +55,75 @@ import { ref, type Ref } from 'vue';
             return;
         }
 
-        // newItem作成
-        const  newItem = {
-            id: id,
-            content: editCntent.value,
-            limit: editLimit.value,
-            state: editStatus.value,
-            onEdit: false,
+        try{
+            // newItem作成
+            const  newItem = {
+                id: id,
+                content: editCntent.value,
+                limit: editLimit.value,
+                state: editStatus.value,
+                onEdit: false,
+            }
+            
+            //対象のitemをnewItemに更新
+            items.value.splice(id, 1, newItem);
+            
+            // ローカルストレージに上書き保存
+            localStorage.setItem("items", JSON.stringify(items.value));
         }
-        
-        //対象のitemをnewItemに更新
-        items.value.splice(id, 1, newItem);
+        catch(e){
+            throw(`更新処理中にエラーが発生しました。${e}`);
+        }
+        finally{
+            // itemEditFlg 更新
+            itemEditFlg.value = false;
+        }
+            
+    }
+    /**
+     * 削除ボタンを押したときに、確認モーダルを表示させる。
+     * @param id
+     */
+    function showDeleteModal(id: number){
+        // 単一更新チェック 
+        if(itemEditFlg.value){
+            errorMsg.value = errMsgs.MSG_003;
+            isErrFlg.value = true;
+            return
+        }
+        deleteItemId = id;
+        modalTextDeleteItem = `ID: ${id}\nタスク内容: ${items.value[id].content}`;
+        isShowModalFlg.value = true;
+    }
+    /**
+     * 削除確認モーダルのOKボタン押下時の処理
+     * @param id
+     */
+    function onDeleteItem(){
+        // 対象のitemをnewItemに更新
+        items.value.splice(deleteItemId, 1);
+
+        // ID割り振り直し
+        items.value = items.value.map((item: any, index: number) => ({
+            id: index,
+            content: item.content,
+            limit: item.limit,
+            state: item.state,
+            onEdit: item.onEdit
+        }));
         
         // ローカルストレージに上書き保存
         localStorage.setItem("items", JSON.stringify(items.value));
 
-        // itemEditFlg 更新
-        itemEditFlg.value = false;
+        // 初期化
+        deleteItemId = 0;
+        isShowModalFlg.value = false;
+    }
+    /**
+     * 削除モーダルのCancelボタン押下時の処理
+     */
+    function onHideModal(){
+        isShowModalFlg.value = false;
     }
     /**
      * タスクの削除処理
@@ -79,7 +136,9 @@ import { ref, type Ref } from 'vue';
 
 <template>
 <div>
+    <!-- エラーメッセージ -->
     <p v-show="isErrFlg">{{errorMsg}}</p>
+    <!-- タスク内容一覧テーブル -->
     <table>
         <tr>
             <th class="th-id">{{headerTextList[0]}}</th>
@@ -116,16 +175,18 @@ import { ref, type Ref } from 'vue';
                 <button v-if="!item.onEdit" @click="onEdit(item.id)">{{headerTextList[4]}}</button>
                 <button v-else @click="onUpdate(item.id)">{{headerTextList[6]}}</button>
             </td>
-            <td><button>{{headerTextList[5]}}</button></td>
+            <td><button @click="showDeleteModal(item.id)">{{headerTextList[5]}}</button></td>
         </tr>
     </table>
 </div>
+<!-- 削除モーダル -->
 <div class="modal" v-show="isShowModalFlg">
     <div class="modal-content">
         <p>このタスクを削除してもよろしいですか？</p>
         <p>※削除されたタスクは元に戻すことはできません。</p>
-        <button>OK</button>
-        <button>Cancel</button>
+        <p>{{modalTextDeleteItem}}</p>
+        <button @click="onDeleteItem()">OK</button>
+        <button @click="onHideModal()">Cancel</button>
     </div>
 </div>
 </template>

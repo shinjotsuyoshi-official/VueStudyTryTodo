@@ -31,7 +31,7 @@
 
         // 入力した内容を「newItem」としてJSON形式で取得
         const  newItem = {
-            id: items.length,
+            id: items.length + 1,
             content: inputText.value,
             limit: inputDate.value,
             state: statuses.NOT_START,
@@ -47,7 +47,7 @@
 <div>
     <!-- 入力フォーム -->
     <p v-show="isErrFlg">{{ isErrMsg }}</p>
-    <form @submit="onSubmitForm">
+    <form @submit="onSubmitForm()">
         <label>{{todoTitle}}<input type="text" v-model="inputText"></label>
         <label>{{todoDate}}<input type="date" v-model="inputDate"></label>
         <input type="submit" v-bind:value="todoBtnTex">
